@@ -62,23 +62,22 @@
       }
   
       int quickSortHelper(vector<int> &nums, int left, int right) {
-          int pos = rand() % (right - left + 1) + left;
+          int pos = left + rand() % (right - left);
           swap(nums[pos], nums[right]);
   
           int pivot = nums[right];
-          int i = left - 1;
-          for (int j = left; j < right; ++j) {
-              if (nums[j] <= pivot) {
-                  ++i;
-                  swap(nums[i], nums[j]);
+          int new_idx = left;
+          for (int i = left; i <= right; ++i) {
+              if (nums[i] < pivot) {
+                  swap(nums[i], nums[new_idx++]);
               }
           }
-          swap(nums[++i], nums[right]);
-          return i;
+          swap(nums[right], nums[new_idx]);
+          return new_idx;
       }
   };
   ```
-
+  
 * 复杂度
 
   * 时间复杂度：基于随机选取主元的快排时间复杂度为$O(n \log n)$，其中`n`为数组长度，证明见 **算法导论第七章**
@@ -540,10 +539,19 @@ int binarySearch(vector<int> nums. int target, int left, int right) {
 > ```
 
 * 思路：二分查找
-  * 无序列表最关键的一句在于： `数组 d[i]表示长度为 i 的最长上升子序列的末尾元素的最小值`，即在数组 `1,2,3,4,5,6`中长度为3的上升子序列可以为 `1,2,3`也可以为 `2,3,4`等等但是`d[3]=3`，即子序列末尾元素最小为3。
-  * 无序列表解释清了数组d的含义之后，我们接着需要证明数组d具有单调性，即证明`i<j时，d[i]<d[j]`，使用反证法，假设存在`k<j时，d[k]>d[j]`，但在长度为j，末尾元素为`d[j]`的子序列A中，将后`j-i`个元素减掉，可以得到一个长度为i的子序列B，其末尾元素t1必然小于`d[j]`（因为在子序列A中，t1的位置上在d[j]的后面），而我们假设数组d必须符合`表示长度为 i 的最长上升子序列的末尾元素的最小值`，此时长度为i的子序列的末尾元素t1`<d[j]<d[k]`，即`t1<d[k]`，所以d[k]不是最小的，与题设相矛盾，因此可以证明其单调性
-  * 无序列表证明单调性有两个好处：1.可以使用二分法；2.数组d的长度即为最长子序列的长度；
-
+  * 朴素想法：如果要使上升子序列尽可能长，则需要让序列上升的尽可能慢，因此希望每次加到上升子序列的末尾元素都尽可能的小。为此维护一个数组`d[i]`： `数组 d[i]表示长度为 i 的最长上升子序列的末尾元素的最小值`。
+  * 例如`[0,4,12,2,3,5]`中，当判断到 `nums[i] = 2`时，`d={0,4,12}`，此时根据这个原则，会将`4`替换为`2`，即d更新为`d={0,2,12}`，虽然此时不会影响最长升序子序列的长度，但是这一步保存了之后有数字可以和`{0,2}`组成更长的升序子序列的可能性。例如，该数组的最长升序子序列为 `{0,2,3,5}`，刚好`{0,2}`是这个子序列的前缀，也正是因为我们将 `4` 替换为了`2`，所以才保留了这种可能性，否则，遇到`3`时，将忽略这个数，从而计算错误。
+  * 最后整个算法流程为：
+    1. 设当前已求出的最长上升子序列的长度为 len（初始时为 1），从前往后遍历数组 nums，在遍历到 nums[i] 时：
+       1. 如果 `nums[i]>d[len]` ，则直接加入到 `d` 数组末尾
+       2. 否则，在 `d` 数组中二分查找，找到第一个比 `nums[i]` 大的数 `d[k]` ，`d[k] = nums[i]`
+    2. 以输入序列 [0,8,4,12,2] 为例：
+       1. 第一步插入 0，d=[0]；
+       2. 第二步插入 8，d=[0,8]；
+       3. 第三步插入 4，d=[0,4]；
+       4. 第四步插入 12，d=[0,4,12]；
+       5. 第五步插入 2，d=[0,2,12]。
+  
 * 代码
 
 ```c++
@@ -608,12 +616,15 @@ public:
 
   * 思路：题目就是二分查找，只不过需要一点改写。返回值改成`left`。并且在循环结束时，`left = mid + 1 = 1`，正好是插入位置
 
-    <img src="https://pic.leetcode-cn.com/1608987585-zwytkZ-file_1608987585784" alt="搜索插入位置" style="zoom: 80%;" />
+  * 为什么要返回left呢？因为如果没有`return mid`，则说明最后跳出循环的条件一定是`left > right`。而在此之前一定是 `left == right == mid`，此时分为两种情况
 
+    * `right = mid - 1`：说明满足了 `target < nums[left] == nums[mid] == nums[right]`，即要插入的元素小于`nums[left]`，则返回`left`位置符合。而`right = mid - 1`位置相对于`target`位置偏左移一位
+    * `left = mid  + 1`：说明满足`target > nums[left] == nums[mid] == nums[right]`，则`left = mid + 1`后位置符合
+  
   * 代码
-
+  
     ```c++
-    // https://leetcode-cn.com/problems/find-first-and-last-position-of-element-in-sorted-array/solution/yi-wen-dai-ni-gao-ding-er-fen-cha-zhao-j-ymwl/
+    // https://leetcode.cn/problems/search-insert-position/solutions/8017/hua-jie-suan-fa-35-sou-suo-cha-ru-wei-zhi-by-guanp/comments/1079722
     // 二分查找
     class Solution {
     public:
@@ -633,9 +644,9 @@ public:
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(\log n)$，其中`n`为数组长度
     * 空间复杂度：$O(1)$，只需要常数空间存放若干变量
 
@@ -716,142 +727,53 @@ public:
     class Solution {
     public:
         vector<int> searchRange(vector<int>& nums, int target) {
-            int low = lowBound(nums, target);
-            int upper = upperBound(nums, target);
-            // 不存在的情况
-            if (low > upper) {
-                return vector<int> {-1, -1};
-            }
-            return vector<int> {low, upper};
+            int lower_bound_idx = lower_bound(nums, target);
+            int upper_bound_idx = upper_bound(nums, target);
+            return {lower_bound_idx, upper_bound_idx};
         }
     
-        // 计算下边界
-        int lowBound(vector<int> &nums, int target) {
+        int lower_bound(vector<int> &nums, int target) {
             int left = 0, right = nums.size() - 1;
+            int res = -1;
             while (left <= right) {
-                int mid = left + ((right - left) >> 1);
-                if (target <= nums[mid]) { 
-                    //当目标值小于等于nums[mid]时，继续在左区间检索，找到第一个数
+                int mid = left + (right - left) / 2;
+                // 当目标值等于nums[mid]时，继续在左区间检索，找到第一个数（重点）
+                if (target == nums[mid]) {
+                    res = mid;
                     right = mid - 1;
-                } else if (nums[mid] < target) {
-                    //目标值大于nums[mid]时，则在右区间继续检索，找到第一个等于目标值的数
+                } else if (target < nums[mid]) { // 当目标值小于nums[mid]时，继续在左区间检索，找到第一个数
+                    right = mid - 1;
+                } else {
                     left = mid + 1;
                 }
             }
-            return left;
+            return res;
         }
     
-        //计算上边界
-        int upperBound(vector<int> &nums, int target) {
+        int upper_bound(vector<int> &nums, int target) {
             int left = 0, right = nums.size() - 1;
+            int res = -1;
             while (left <= right) {
-                int mid = left + ((right - left) >> 1);
-                if (target < nums[mid]) {
-                    right = mid - 1;
-                } else if (nums[mid] <= target) {
+                int mid = left + (right - left) / 2;
+                // 当目标值等于nums[mid]时，继续在右区间检索，找到最后一个数（重点）
+                if (target == nums[mid]) {
+                    res = mid;
                     left = mid + 1;
+                } else if (target > nums[mid]) {  // 当目标值大于nums[mid]时，继续在右区间检索，找到最后一个数
+                    left = mid + 1;
+                } else {
+                    right = mid - 1;
                 }
             }
-            return right;
+            return res;
         }
     };
     ```
 
   * 复杂度
-
+  
     * 时间复杂度：$O(\log n)$，其中`n`为数组长度，二分查找时间复杂度为$O(\log n)$，一共执行两次
     * 空间复杂度：$O(1)$，只需要常数空间存放若干变量
-
-#### 题目变种：找出第一个大于目标元素的元素索引
-
-> 我们在上面的变种中，描述了如何找出目标元素在数组中的上下边界，然后我们下面来看一个新的变种，
->
-> 如何从数组或区间中找出第一个大于或最后一个小于目标元素的数的索引，例 nums = {1,3,5,5,6,6,8,9,11} 我们希望找出第一个大于 5的元素的索引，那我们需要返回 4 ，因为 5 的后面为 6，第一个 6 的索引为 4，如果希望找出最后一个小于 6 的元素，那我们则会返回 3 ，因为 6 的前面为 5 最后一个 5 的索引为 3。
->
-> 好啦题目我们已经了解，下面我们先来看一下如何在数组或区间中找出第一个大于目标元素的数吧。
-
-* 二分查找
-
-  * 思路
-
-    * 找出第一个大于目标元素的元素，有以下几种情况
-
-      ![模糊边界情况](https://pic.leetcode-cn.com/1608987585-NOFpcd-file_1608987585805)
-
-      * 数组包含目标元素，找出在目标元素后的第一个元素，比如图中`target = 5`
-      * 数组不包含目标元素，且数组中的所有元素都大于目标元素，此时返回数组第一个元素即可，比如图中`target = 0`
-      * 数组不包含目标元素，且数组中的部分元素大于目标元素，此时需要返回第一个大于它的元素，比如图中`target = 7`
-      * 数组不包含目标元素，且数组中的所有元素都小于它，此时返回`-1`即可，表示没有查询到，比如图中`target = 11`
-
-    * 既然分析完所有情况，下面描述下执行过程，比如`nums = {1,3,5,5,6,6,8,9,11} target = 7`
-
-      * `target = 7`的情况
-
-        ![二分查找模糊边界目标值](https://pic.leetcode-cn.com/1608987585-rXWBPy-file_1608987585806)
-
-      * `target = 0`的情况
-
-        ![模糊边界目标0](https://pic.leetcode-cn.com/1608987585-AKZnrj-file_1608987585808)
-
-  * 代码
-
-    ```c++
-    int findFirstGreaterThanTarget(vector<int> &nums, int target) {
-        int left = 0, right = nums.size() - 1;
-        while (left <= right) {
-            int mid = left + ((right - left) >> 1);
-            //大于目标值的情况
-            if (nums[mid] <= target) {
-                left = mid + 1;
-            } else if (target < nums[mid]) {
-                if (mid == 0 || nums[mid - 1] <= target) {
-                    return mid;
-                } else {
-                    right = mid - 1;
-                }
-            }
-        }
-        //所有元素都小于目标元素
-        return -1;
-    } 
-    ```
-
-  * 复杂度
-
-    * 时间复杂度：$O(\log n)$，其中`n`为数组长度
-    * 空间复杂度：$O(1)$，只需要常数空间存放若干变量
-
-#### 题目变种：找出最后一个小于目标元素的元素索引
-
-> 通过上面的例子我们应该可以完全理解了那个变种，下面我们继续来看以下这种情况，那就是如何找到最后一个小于目标数的元素。还是上面那个例子
->
-> nums = {1,3,5,5,6,6,8,9,11} target = 7
->
-> 查找最后一个小于目标数的元素，比如我们的目标数为 7 ，此时他前面的数为 6，最后一个 6 的索引为 5，此时我们返回 5 即可，如果目标数元素为 12，那么我们最后一个元素为 11，仍小于目标数，那么我们此时返回 8，即可。这个变种其实算是上面变种的相反情况，上面的会了，这个也完全可以搞定了
-
-下面我们看一下代码吧。
-
-```c++
-int findFirstGreaterThanTarget(vector<int> &nums, int target) {
-    int left = 0, right = nums.size() - 1;
-    while (left <= right) {
-        int mid = left + ((right - left) >> 1);
-        //小于目标值
-        if (nums[mid] < target) {
-            //看看是不是当前区间的最后一位，如果当前小于，后面一位大于，返回当前值即可
-            if (mid == right || nums[mid + 1] >= target) {
-                return mid;
-            } else {
-                left = mid + 1;
-            }
-        } else if (target < nums[mid]) {
-            right = mid - 1;
-        }
-    }
-    //没有查询到的情况
-    return -1;
-} 
-```
 
 #### [33. 搜索旋转排序数组](https://leetcode-cn.com/problems/search-in-rotated-sorted-array/)
 
@@ -878,39 +800,11 @@ int findFirstGreaterThanTarget(vector<int> &nums, int target) {
 
   * 思路
 
-    * 二分查找可在不完全有序的情况下使用。如下图，数组虽然不完全有序，但可看做是一个完全有序的数组翻折而来，或者可理解为两个有序数组，且第二个数组的最大值小第一个数组的最小值，然后拼接而来得到的一个不完全有序的数组。在这个数组中，寻找target，找到后返回其索引，如果找不到则返回-1.
-
-      <img src="https://pic.leetcode-cn.com/1608987585-vMJjwe-file_1608987585791" alt="img" style="zoom:50%;" />
-
-    * 普通方法：直接遍历数组即可，但是是否可以使用二分查找呢？
-
-    * **思路（重点）**
-
-      * 定义`数组1`和`数组2`；数组中第一段有序区间称为`数组1`，同理第二段有序区间称为`数组2`
-
-      * 首先分析`mid`点会落在哪里？存在两种情况
-
-        * `left`点和`mid`点落在同一段，比如同时落在`数组1`或`数组2`:那么怎么判断呢？可以使用`nums[mid]`和`nums[left]`来判断，因为`mid`一定会落在`[left, right]`之间。则条件是`nums[left] <= nums[mid]`
-
-        * `left` 点和`mid`点落在两段，`left`在`数组1`，而`mid`点落在`数组2`，则条件是`nums[mid] < nums[left]`
-
-          <img src="https://pic.leetcode-cn.com/1608987585-egDTnR-file_1608987585792" alt="mid值情况" style="zoom: 33%;" />
-
-      * 然后在确定了`left`点和`mid`点关系后，再寻找`mid`点和`target`间的关系，
-
-        * 首先以`left`点和`mid`点在同一数组的情况下举例分析；当然`mid`点和`target`也无非两种关系
-
-          <img src="https://pic.leetcode-cn.com/1608987585-DkeFuh-file_1608987585793" alt="left左" style="zoom: 50%;" />
-
-          * `target`在`mid`点左边：如上图`target=5`的情况，此时`4 <= target < 7`，即`nums[left] <= target &&  target < nums[mid]`，此时移动`right`指针`right = mid - 1`，让`left, right`都落在`数组1`中，那么之后的查找就都在`数组1`中了，完全有序的数组
-          * `target`在`mid`点右边：如上图`target = 1、target=8`的情况，即`target > nums[mid] || target < nums[left]`，此时移动`left`指针，`left = mid + 1`，这样逐渐`left`和`right`会走到一个有序数组中
-
-        * 然后以`left`和`mid`在不同数组的情况分析，同上，`mid`点和`target`存在两种关系
-
-          ​	<img src="https://pic.leetcode-cn.com/1608987585-ReyFqb-file_1608987585804" alt="right右" style="zoom: 50%;" />
-
-          * `target`在`mid`点右边，如上图`target = 3`的情况，此时`1 < target <= 5`，即`nums[mid] < target && target <= nums[right]`,此时移动`left`指针`left = mid + 1`，将`left, right`指针都落在`数组2`中，那么之后的查找就在`数组2`中了，完全有序的数组
-          * `target`在`mid`点左边，如上图`target = 6、target = 0`的情况，即`target > nums[right] || target < nums[mid]`，此时移动`right`指针，`right = mid - 1`，这样`left, right`指针逐渐走到同一个有序数组中。
+    * 数组本身不是有序的，进行旋转后只保证了数组的局部是有序的，这还能进行二分查找吗？答案是可以的。
+  * 可以发现的是，我们将数组从中间分开成左右两部分的时候，一定有一部分的数组是有序的。拿示例来看，我们从 `6` 这个位置分开以后数组变成了 `[4, 5, 6]` 和 `[7, 0, 1, 2]` 两个部分，其中左边 `[4, 5, 6]` 这个部分的数组是有序的，其他也是如此。
+    * 这启示我们可以在常规二分查找的时候查看当前 `mid` 为分割位置分割出来的两个部分 `[l, mid]` 和 `[mid + 1, r]` 哪个部分是有序的，并根据有序的那个部分确定我们该如何改变二分查找的上下界，因为我们能够根据有序的那部分判断出 target 在不在这个部分：
+  * 如果 `[l, mid]` 是有序数组，且 target 的大小满足 `([nums[l],nums[mid])`，则我们应该将搜索范围缩小至 `[l, mid - 1]`，否则在 `[mid + 1, r]` 中寻找。
+    * 如果 `[mid, r]` 是有序数组，且 target 的大小满足 `(nums[mid],nums[r])`，则我们应该将搜索范围缩小至 `[mid + 1, r]`，否则在 `[l, mid - 1]` 中寻找。
 
   * 代码
 
@@ -920,38 +814,34 @@ int findFirstGreaterThanTarget(vector<int> &nums, int target) {
     class Solution {
     public:
         int search(vector<int>& nums, int target) {
-            int n = nums.size();
-            int left = 0, right = n - 1;
+            int left = 0, right = nums.size() - 1;
             while (left <= right) {
-                int mid = left + ((right - left) >> 1);
-                if (nums[mid] == target) {
+                int mid = left + (right - left) / 2;
+                if (target == nums[mid]) {
                     return mid;
                 }
-                // mid 和 left 落在同一数组：数组1或数组2
-                if (nums[mid] >= nums[left]) {
-                    // target 落在[left, mid)之间，移动right，后面就是在完全有序的区间内查找
+                // 左区间有序
+                if (nums[left] <= nums[mid]) {
                     if (nums[left] <= target && target < nums[mid]) {
                         right = mid - 1;
-                    } else if (nums[mid] < target || target < nums[left]) {  // target落在(mid, right]，可能在数组1，也可能是数组2；调整left，逐渐调整到完全有序的区间
+                    } else {
                         left = mid + 1;
                     }
-                } else if (nums[mid] < nums[left]) {  // mid和left落在不同数组，left在数组1，mid在数组2
-                    // 有序区间，target落在(mid, right]之间，移动left，后面就是在完全有序的区间内查找
+                } else {  // 右区间有序
                     if (nums[mid] < target && target <= nums[right]) {
                         left = mid + 1;
-                    } else if (target < nums[mid] || target > nums[right]) {  // target落在[left, mid)，可能在数组2，也可能是数组1，调整riht，逐渐调整到完全有序的区间
+                    } else {
                         right = mid - 1;
                     }
                 }
             }
-            // 没有查找到
             return -1;
         }
     };
     ```
-
+    
   * 复杂度
-
+  
     * 时间复杂度：$O(\log n)$，其中`n`为数组长度，二分查找时间复杂度为$O(\log n)$，一共执行两次
     * 空间复杂度：$O(1)$，只需要常数空间存放若干变量
 
@@ -974,17 +864,7 @@ int findFirstGreaterThanTarget(vector<int> &nums, int target) {
 
 * 二分查找
 
-  * 思路
-
-    * 数组不完全有序时，不包含重复元素的问题解法已在上面分析过。那么包含重复元素的情况下该怎么做呢？ 见下图。
-
-    <img src="https://pic.leetcode-cn.com/1608987585-TwxwZO-file_1608987585794" alt="640" style="zoom:50%;" />
-
-    * 如上图，若继续使用上题代码，则会报错，为什么呢？现在分析下，如下图，`target=3`，若还是之前的判断条件，则会跳过`target`元素，导致出错。
-
-      <img src="https://pic.leetcode-cn.com/1608987585-jAZQOn-file_1608987585795" alt="微信图片_20201226202036" style="zoom:50%;" />
-
-    * 所以，需要改进判断条件，将重复元素去掉。当`nums[left] == nums[mid]`时，让`left++`，比如`[1, 3, 1, 1, 1]`，此时`nums[left] == nums[mid]`，则`left++`。这样会错过目标值吗？并不会，只是去掉了某些重复元素，如果此时目标为`3`，则`left++`，然后就变成了上题中无重复元素的情况。
+  * 思路：这道题包含了重复元素其实影响到的是，当左端点和右端点相等时，无法判断mid在左半边有序数组还是右半边有序数组，所以只需要一直pop直到左端点和右端点不相等就可以了。
 
   * 代码
 
@@ -994,27 +874,24 @@ int findFirstGreaterThanTarget(vector<int> &nums, int target) {
     class Solution {
     public:
         bool search(vector<int>& nums, int target) {
-            int n = nums.size();
-            int left = 0, right = n - 1;
+            int left = 0, right = nums.size() - 1;
             while (left <= right) {
-                int mid = left + ((right - left) >> 1);
+                int mid = left + (right - left) / 2;
+                // 找到target
                 if (target == nums[mid]) {
                     return true;
-                }
-                if (nums[left] == nums[mid]) {
+                } else if (nums[left] == nums[mid]) {  // 无法区分有序区间，需要去除重复元素
                     ++left;
-                    continue;
-                }
-                if (nums[left] < nums[mid]) {
-                    if (nums[left] <= target && target < nums[mid]) {
+                } else if (nums[left] <= nums[mid]) {  // 左半区间有序
+                    if (nums[left] <= target && target < nums[mid]) {  // target位于左半区间
                         right = mid - 1;
-                    } else if (target > nums[mid] || target < nums[left]) {
+                    } else {
                         left = mid + 1;
                     }
-                } else if (nums[left] > nums[mid]) {
-                    if (nums[mid] < target && target <= nums[right]) {
+                } else {  // 右半区间有序
+                    if (nums[mid] <= target && target <= nums[right]) {  // target位于右半区间
                         left = mid + 1;
-                    } else if (target < nums[mid] || target > nums[right]) {
+                    } else {
                         right = mid - 1;
                     }
                 }
@@ -1023,9 +900,9 @@ int findFirstGreaterThanTarget(vector<int> &nums, int target) {
         }
     };
     ```
-
+    
   * 复杂度
-
+  
     * 时间复杂度：$O(n)$，其中`n`为数组长度，最坏情况下数组元素均相等且不为`target`，需要访问所有位置才能出结果
     * 空间复杂度：$O(1)$，只需要常数空间存放若干变量
 
@@ -1066,44 +943,36 @@ int findFirstGreaterThanTarget(vector<int> &nums, int target) {
 
       ![微信图片_20201226204620](https://pic.leetcode-cn.com/1608987739-VfALkv-file_1608987739104)
 
-      * 数组完全有序，`nums[left] < nums[right]`，此时返回`nums[left]`即可
-      * `left`和`mid`都在前半部分，单调递增区间内，此时需要移动`left = mid + 1`，在右半部分继续查找
+      * 数组完全有序，`nums[mid] < nums[right]`，一直更新`right`， 最后`left == mid == right`
+      * `left`和`mid`都在前半部分，单调递增区间内，`nums[mid] >= nums[right]`，此时需要移动`left = mid + 1`，在右半部分继续查找
       * `left`在前半部分，`mid`在后半部分，则最小值在`[left, mid]`之间，此时需要移动`right = mid`。注意不是`right = mid - 1`，这样会漏掉最小值，因为此时的`mid`可能就是指向最小值，所以`right = mid`
-
-    * 上面分析了搜索最小值可能出现的情况，那么现在看下具体示例。`nums = [5,6,7,0,1,2,3]`，具体执行过程如下
-
-      ![微信图片_20201226204725](https://pic.leetcode-cn.com/1608987739-vGDKDN-file_1608987739110)
 
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/find-minimum-in-rotated-sorted-array/solution/yi-wen-dai-ni-gao-ding-er-fen-cha-zhao-j-00kj/
+    // https://leetcode.cn/problems/find-minimum-in-rotated-sorted-array/solutions/126635/er-fen-cha-zhao-wei-shi-yao-zuo-you-bu-dui-cheng-z/
     // 二分查找
     class Solution {
     public:
         int findMin(vector<int>& nums) {
             int left = 0, right = nums.size() - 1;
+    
             while (left <= right) {
-                // 单调递增时直接返回
-                if (nums[left] <= nums[right]) {
-                    return nums[left];
-                }
-                int mid = left + ((right - left) >> 1);
-                // [left, mid]间单调递增，说明最小值一定不在[left, mid]区间
-                if (nums[left] <= nums[mid]) {
+                int mid = left + (right - left) / 2;
+                if (nums[mid] >= nums[right]) {
                     left = mid + 1;
-                } else if (nums[left] > nums[mid]) {
-                    // mid小于left，说明最小值一定在[left, mid]区间，移动right
+                } else {
                     right = mid;
                 }
             }
-            return -1;
+    
+            return nums[right];
         }
     };
     ```
-
+    
   * 复杂度
-
+  
     * 时间复杂度：$O(\log n)$，其中`n`为数组长度
     * 空间复杂度：$O(1)$，只需要常数空间存放若干变量
 
@@ -1131,7 +1000,7 @@ int findFirstGreaterThanTarget(vector<int> &nums, int target) {
 
   * 思路
 
-    * 我们需要从一个二维矩阵中，搜素是否存在目标元素`7`，如何使用二分查找呢？其实完全可以将二维矩阵想象成一个有序的一维数组，然后用二分查找。比如如图的二维矩阵，共有`9`个元素，定义`left = 0, right = 9 - 1 - 8`，定义和一维数组相同，然后求`mid = left + ((right - left) >> 1) = 4`，如何将`mid = 4`转化到二维坐标呢？可以直接使用`row = mid / 3 = 1, col = mid % 3 = 1`，得到了`nums[mid] = matrix[row][col] = matrix[1][1]`
+    * 我们需要从一个二维矩阵中，搜素是否存在目标元素`7`，如何使用二分查找呢？其实完全可以将二维矩阵想象成一个有序的一维数组，然后用二分查找。比如如图的二维矩阵，共有`9`个元素，定义`left = 0, right = 9 - 1 = 8`，定义和一维数组相同，然后求`mid = left + ((right - left) >> 1) = 4`，如何将`mid = 4`转化到二维坐标呢？可以直接使用`row = mid / 3 = 1, col = mid % 3 = 1`，得到了`nums[mid] = matrix[row][col] = matrix[1][1]`
 
       ![二维数组](https://pic.leetcode-cn.com/1608987789-lzuUmr-file_1608987789076)
 
@@ -1198,7 +1067,7 @@ int findFirstGreaterThanTarget(vector<int> &nums, int target) {
     * **快速幂算法**的本质就是分治算法。
       * 比如，要计算$x^{64}$，可以按照$x \rightarrow x^{2} \rightarrow x^{4} \rightarrow x^{8} \rightarrow x^{16} \rightarrow x^{32} \rightarrow x^{64}$的顺序，从$x$开始，每次直接把上一次的进行平方，计算`6`次就可得到$x^{64}$的值。而暴力需要计算`63`次`x`
       * 再比如计算$x^{77}$，按照$x \rightarrow x^{2} \rightarrow x^{4} \rightarrow x^{9} \rightarrow x^{19} \rightarrow x^{38} \rightarrow x^{77}$的顺序，在$x \rightarrow x^{2}, x^{2} \rightarrow x^{4},x^{19} \rightarrow x^{38}$这些步骤中，直接把上一次的结果进行平方，而在$x^{4} \rightarrow x^{9}, x^{9} \rightarrow x^{19}, x^{38} \rightarrow x^{77}$这些步骤中，在把上一次的结果进行平方后，还需额外成一个$x$
-    * 直接从左到右推导比较困难，因为在每一步中，不知道在将上一次的结果平房后，是否需要额外乘$x$，但如果从右往左看，分治思想就十分明显了
+    * 直接从左到右推导比较困难，因为在每一步中，不知道在将上一次的结果平方后，是否需要额外乘$x$，但如果从右往左看，分治思想就十分明显了
       * 当计算$x^n$时，先递归计算出$y = x^{\lfloor \frac{n}{2}\rfloor}$，其中$\lfloor a\rfloor$表示对$a$进行下取整
       * 根据递归计算的结果，如果$n$为偶数，那么$x^n = y^2$；若$n$为奇数，则$x^n = y^2 \times x$
       * 递归的边界为$n = 0$，任意数的0次方均为1
@@ -1359,10 +1228,10 @@ int findFirstGreaterThanTarget(vector<int> &nums, int target) {
 
 * 二分查找
 
-  * 思路
+  * 思路：翻译下问题，其实就是找到最后出现的数`num`，使得 `num * num <= x`
 
-    * 由于 xx 平方根的整数部分 $\textit{ans}$是满足 $k^2 \leq x$ 的最大 $k$ 值，因此我们可以对 $k$ 进行二分查找，从而得到答案。
-    * 二分查找的下界为 $0$，上界可以粗略地设定为 $x$。在二分查找的每一步中，我们只需要比较中间元素$ \textit{mid}$的平方与 $x$ 的大小关系，并通过比较的结果调整上下界的范围。由于我们所有的运算都是整数运算，不会存在误差，因此在得到最终的答案 $\textit{ans}$后，也就不需要再去尝试 $\textit{ans} + 1$ 了。
+    * 由于 `x`平方根的整数部分 `res`是满足 `k * k <= x` 的最大`k` 值，因此我们可以对 `k`进行二分查找，从而得到答案。
+    * 二分查找的下界为 `0`，上界可以粗略地设定为 `x`。在二分查找的每一步中，我们只需要比较中间元素`mid`的平方与 `x` 的大小关系，并通过比较的结果调整上下界的范围。由于我们所有的运算都是整数运算，不会存在误差，因此在得到最终的答案 `ans`后，也就不需要再去尝试`ans`了。
 
   * 代码
 

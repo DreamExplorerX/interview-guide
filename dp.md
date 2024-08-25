@@ -618,48 +618,52 @@ public:
 class Solution {
 public:
     int findTargetSumWays(vector<int>& nums, int target) {
-        int sum = 0;
-        for (auto num : nums) {
-            sum += num;
-        }
-        int diff = sum - target;
-        if (diff < 0 || diff % 2 != 0) {
-            return 0;
-        }
-        int bag = diff / 2;
+        // 0. 从nums中选择元素，每个元素可选一次，其实就是背包问题。如何得到容量呢？
+        // 0.1 假设 +串联的整数和为 p, -串联的整数为 n，总和为 s. 那么 p + n = s;
+        // 0.2 target = p - n = p - (s - p) = 2p - s; ==> p = (target + s) / 2;
+        // 0.3 问题就转化为 从nums中任取元素，每个元素最多取一次，恰好装满背包容量为 p 的表达式数目
 
-        // 1. 确定dp数组含义 dp[i][j] 表示从物品[0,i]中选择，填满背包 j 的数目
-        vector<vector<int>> dp(nums.size(), vector<int>(bag + 1, 0));
-        // 2. 递推函数 dp[i][j] = max(dp[i - 1][j], dp[i - 1][j - weights[i]] + values[i])
-        // 3. 初始化 dp[i][0] = 1 不论物品有多少，都不选，组合数=1
+        int s = std::accumulate(nums.begin(), nums.end(), 0);
+        int capacity = s + target;
+        if (capacity < 0 || capacity % 2 != 0) { return 0; }
+        capacity /= 2;
+
+        // 1. 确定dp数组含义：dp[i][j]表示 从nums中任取元素，每个元素最多取一次，恰好装满背包容量为 p 的表达式数目
+        vector<vector<int>> dp(nums.size() + 1, vector<int>(capacity + 1, 0));
+
+        // 2. 递推公式 
+        // 2.1 dp[i][j] = dp[i - 1][j] + dp[i - 1][j - nums[i]]; if j >= nums[i] 表示可选可不选的组合相加，
+        //      dp[i - 1][j] 不选当前元素的组合数为dp[i - 1][j]，表示继续用容量 j 去[1, i - 1]中选择；
+        //      dp[i - 1][j - nums[i]] 表示选择当前元素的组合数，表示用剩余容量 j - nums[i] 去[1, i - 1]中选择
+
+        // 2.2 dp[i][j] = dp[i - 1][j]; if j < nums[i]表示不选择当前元素的组合数
+
+        // 3. 初始化
+        // 3.1 dp[i][0] = 1; 表示什么都不选，也是一种方式；都不选表示都是 - 串联
         for (int i = 0; i < nums.size(); ++i) {
             dp[i][0] = 1;
         }
-        // 3. 当 j == nums[0]时，背包只放nums[0]，组合数+=1
-        // 因为是组合数，万一nums[0] = 0，则dp[0][0] = 2，所以这里用++的方式
-        if (nums[0] <= bag) {
-            dp[0][nums[0]] += 1;
-        }
 
         // 4. 遍历顺序
-        for (int i = 1; i < nums.size(); ++i) {
-            // 注意这里 j 是从[0, bag]，防止出现nums[i] == 0的情况
-            for (int j = 0; j <= bag; ++j) {
-                if (j >= nums[i]) {
-                    dp[i][j] = dp[i - 1][j] + dp[i - 1][j - nums[i]];
+        for (int i = 1; i <= nums.size(); ++i) {
+            for (int j = 0; j <= capacity; ++j) {
+                if (j >= nums[i - 1]) {
+                    dp[i][j] = dp[i - 1][j] + dp[i - 1][j - nums[i - 1]];
                 } else {
                     dp[i][j] = dp[i - 1][j];
                 }
             }
         }
+
         // 5. 打印dp数组
-        for (int i = 0; i < nums.size(); ++i) {
-            for (int j = 0; j <= bag; ++j) {
-                std::cout << dp[i][j] << " ";
-            }
-            std::cout << std::endl;
-        }
-        return dp[nums.size() - 1][bag];
+        // for (auto row : dp) {
+        //     for (auto val : row) {
+        //         cout << val << "\t";
+        //     }
+        //     cout << endl;
+        // }
+
+        return dp[nums.size()][capacity];
     }
 };
 ```
@@ -892,36 +896,32 @@ for(int j = 0; j <= bagWeight; j++) { // 遍历背包容量
 >
 > 题目数据保证结果符合 32 位带符号整数。
 >
->  
->
-> 
->
-> **示例 1：**
+>  **示例 1：**
 >
 > ```
-> 输入：amount = 5, coins = [1, 2, 5]
+>输入：amount = 5, coins = [1, 2, 5]
 > 输出：4
-> 解释：有四种方式可以凑成总金额：
+>解释：有四种方式可以凑成总金额：
 > 5=5
 > 5=2+2+1
 > 5=2+1+1+1
 > 5=1+1+1+1+1
 > ```
->
+> 
 > **示例 2：**
->
+> 
 > ```
-> 输入：amount = 3, coins = [2]
+>输入：amount = 3, coins = [2]
 > 输出：0
-> 解释：只用面额 2 的硬币不能凑成总金额 3 。
+>解释：只用面额 2 的硬币不能凑成总金额 3 。
 > ```
->
+> 
 > **示例 3：**
->
+> 
 > ```
-> 输入：amount = 10, coins = [10] 
+>输入：amount = 10, coins = [10] 
 > 输出：1
-> ```
+>```
 
 ###### 回溯
 
@@ -929,15 +929,13 @@ for(int j = 0; j <= bagWeight; j++) { // 遍历背包容量
 
 ###### 动态规划-完全背包-二维DP
 
-
+先遍历物品和背包都可以，因为递推公式 `dp[i][j] = dp[i - 1][j] + dp[i][j - coins[i]]`，当前值依赖前一行本列值和本行前几列值，两个遍历顺序都会先计算出当前值的依赖值
 
 |            | 背包容量0 | 背包容量1 | 背包容量2 | 背包容量3 | 背包容量4 | 背包容量5 |
 | ---------- | --------- | --------- | --------- | --------- | --------- | --------- |
 | 物品0    1 | 1         | 1         | 1         | 1         | 1         | 1         |
 | 物品1    2 | 1         | 1         | 2         | 2         | 3         | 3         |
 | 物品2    5 | 1         | 1         | 2         | 2         | 3         | 4         |
-
-
 
 |           | 物品0 - 1 | 物品1 - 2 | 物品2 - 5 |
 | --------- | --------- | --------- | --------- |
@@ -950,43 +948,91 @@ for(int j = 0; j <= bagWeight; j++) { // 遍历背包容量
 
 
 
+```c++
+class Solution {
+public:
+    int change(int amount, vector<int>& coins) {
+        // 1. 确定dp数组含义：dp[i][j] 表示 从物品[1, i]中任取，每个元素可取多次，恰好装满容量为 j 的背包的硬币组合数
+        vector<vector<int>> dp(coins.size() + 1, vector<int>(amount + 1, 0));
 
+        // 2. 递推公式：dp[i][j] = dp[i - 1][j] + dp[i][j - coins[i]]
+        // 2.1 dp[i - 1][j] 表示不选择当前元素，依旧用容量 j 去物品 [1, i - 1]中选择
+        // 2.2 dp[i][j - coins[i]] 表示选择当前元素，再用容量 j - coins[i] 去物品 [1, i - 1]中选择
+
+        // 3. 初始化
+        // 3.1 dp[i][0] = 1; 什么都不选，也是 1 中组合
+        // 3.2 dp[0][j] = ?; 只能选coins[0]的情况下，需要看是否能组合成 j，不过不初始化，可以直接在第4步执行
+        for (int i = 0; i <= coins.size(); ++i) {
+            dp[i][0] = 1;
+        }
+
+        // 4. 遍历顺序
+        // 4.1 遍历硬币
+        for (int i = 1; i <= coins.size(); ++i) {
+            // 4.2 遍历背包容量
+            for (int j = 1; j <= amount; ++j) {
+                if (j >= coins[i - 1]) {
+                    dp[i][j] = dp[i - 1][j] + dp[i][j - coins[i - 1]];
+                } else {
+                    dp[i][j] = dp[i - 1][j];
+                }
+            }
+        }
+
+        // 5. 打印dp数组
+        // for (auto row : dp) {
+        //     for (auto val : row) {
+        //         cout << val << "\t";
+        //     }
+        //     cout << endl;
+        // }
+
+        return dp[coins.size()][amount];
+    }
+};
+```
 
 ##### 动态规划-完全背包-一维DP
 
 ```c++
 class Solution {
 public:
-    // 动态规划
+    // 动态规划-完全背包-一维数组
     int change(int amount, vector<int>& coins) {
-        // 1. 确定dp含义，dp[j]表示从物品[0, i]中任选，每个物品可选任意次，填满容量为j的背包的组合数
+        // 1. 确定dp数组含义：dp[j] 表示从物品 [1, i]中任务，每个元素可取多次，恰好装满容量为 j 的背包的硬币组合数
         vector<int> dp(amount + 1, 0);
 
         // 2. 递推公式 dp[j] = dp[j] + dp[j - coins[i]]
+        // 2.1 dp[j] ==> dp[i - 1][j] 表示不选择当前元素，依旧用容量j去物品[1, i - 1]中选择
+        // 2.2 dp[j - coins[i]] 表示选择当前元素，再用容量 j - coins[i] 去物品 [1, i - 1]中选择
 
-        // 3. 初始化：任意元素都不选，可得一种方法
+        // 3. 初始化
+        // dp[0] = 1; 容量为 0  的时候，什么都不选，也是一种组合
         dp[0] = 1;
 
-        // 4. 遍历顺序：求组合数需要先遍历物品，后遍历背包，
+        // 4. 遍历顺序
+        // 4.1 遍历物品
         for (int i = 0; i < coins.size(); ++i) {
+            // 4.2 遍历背包容量，因为dp[i][j] = dp[i - 1][j] + dp[i][j - coins[i]]，会用到上一行本列值和本一行前几列值，需要先算出来这些值，所以要从前往后
             for (int j = 0; j <= amount; ++j) {
                 if (j >= coins[i]) {
                     dp[j] = dp[j] + dp[j - coins[i]];
                 } else {
-                    // dp[j] = dp[j];
+                    // dp[j] = dp[j];  // 
                 }
             }
         }
+
+        // // 5. 打印dp数组
+        // for (auto val : dp) {
+        //     cout << val << "\t";
+        // }
+        // cout << endl;
+
         return dp[amount];
     }
 };
 ```
-
-
-
-
-
-
 
 
 
@@ -1164,36 +1210,82 @@ public:
 > 输入：height = [4,2,0,3,2,5]
 > 输出：9
 
+* 暴力（超时）
+
+  ```c++
+  class Solution {
+  public:
+      // 遍历每列，计算每列可存放的雨水，求和
+      // 每列可存放的雨水 = min(左侧最高列, 右侧最高列) - 当前列 得出
+      // 第一列和最后一列因左右两侧没有列，无法存水
+      int trap(vector<int>& height) {
+          int res = 0;
+          // 第1列和最后一列
+          for (int i = 1; i < height.size() - 1; ++i) {
+              int max_left = 0, max_right = 0;
+              for (int j = i - 1; j >= 0; --j) {
+                  max_left = max(max_left, height[j]);
+              }
+              for (int j = i + 1; j < height.size(); ++j) {
+                  max_right = max(max_right, height[j]);
+              }
+              int min_around = min(max_left, max_right);
+              res += max(min_around - height[i], 0);
+          }
+          return res;
+      }
+  };
+  ```
+  
+* 动态规划
+
+  ```c++
+  class Solution {
+  public:
+      int trap(vector<int>& height) {
+          int res = 0;
+          // 1. 确定dp数组含义：
+          // 1.1 dpLeft[i]表示第i列的左侧最大值（不包含当前列）
+          // 1.2 dpRight[i]表示第i列的右侧最大值（不包含当前列）
+          vector<int> dpLeft(height.size(), 0), dpRight(height.size(), 0);
+          // 2. 递推公式
+          // 2.1 dpLeft[i] = max(dpLeft[j], height[j]); 0 <= j < i;
+          // 2.2 dpRight[i] = max(dpRight[j], height[j]); i < j < height.size();
+          for (int i = 1; i < height.size(); ++i) {
+              dpLeft[i] = max(dpLeft[i - 1], height[i - 1]);
+          }
+          for (int i = height.size() - 2; i >= 0; --i) {
+              dpRight[i] = max(dpRight[i + 1], height[i + 1]);
+          }
+          // 3. 初始化
+          // 4. 遍历顺序
+          for (int i = 1; i < height.size() - 1; ++i) {
+              int min_around = min(dpLeft[i], dpRight[i]);
+              res += max(min_around - height[i], 0);
+          }
+          return res;
+      }
+  };
+  ```
+  
+  
+  
 * 双指针法
 
-  * 思路
+  * 思路：原来双指针相当于同时开两个柱子接水。 对于每一个柱子接的水，那么它能接的`水=min(左右两边最高柱子）-当前柱子高度`，这个公式没有问题。同样的，两根柱子要一起求接水，同样要知道它们左右两边最大值的较小值。
 
-    * 明确变量含义：
+    问题就在这，假设两柱子分别为 `i`，`j`。那么就有 `iLeftMax, iRightMax, jLeftMax, jRightMax` 这个变量。由于` j>i` ，故`jLeftMax >= iLeftMax，iRigthMax >= jRightMax`.
 
-      * `left_max`：左边最大值，从左往右遍历时得到；
-      * `right_max`：右边最大值，从右往左遍历时得到
-      * `left`：从左往右处理的当前下标
-      * `right`：从右往左处理的当前下标
-
-    * **定理一**：在某个位置`i`处，它能存的水，取决于它左右两边的最大值中较小的一个
-
-    * **定理二**：当从左往右处理到`left`下标时，左边的最大值`left_max`对它而言是可信的，但`right_max`是不可信的。因为`left_max`是从左往右遍历得到，而`right_max`却在不知多远的右边，中间会出现各种位置情况，right_max不一定是它右边最大的值；比如下图
-
-      ```text
-                                         right_max
-       left_max                             __
-         __                                |  |
-        |  |__   __??????????????????????  |  |
-      __|     |__|                       __|  |__
-              left                      right
-      ```
-
-      对于位置`left`而言，左边最大值一定是`left_max`，右边最大值 **大于等于**`right_max`，这时候，如果`left_max < right_max`，那么它就知道自己能存多少水了。无论右边将来会不会出现更大的`right_max`，都不影响这个结果。故当`left_max < right_max`时，我们希望去处理`left`下标，反之，我们希望去处理`right`下标
-
+    * 如果` iLeftMax > jRightMax`，则必有 `jLeftMax >= jRightMax`，所有我们能接 `j` 点的水。
+    
+    * 如果 `jRightMax > iLeftMax`，则必有 `iRightMax >= iLeftMax`，所以我们能接 `i` 点的水。
+    
+    而上面我们实际上只用到了 `iLeftMax，jRightMax` 两个变量，故我们维护这两个即可。
+    
   * 代码
-
+  
     ```c++
-    // https://leetcode-cn.com/problems/trapping-rain-water/solution/jie-yu-shui-by-leetcode/327718
+    // https://leetcode.cn/problems/trapping-rain-water/solutions/9112/xiang-xi-tong-su-de-si-lu-fen-xi-duo-jie-fa-by-w-8/comments/1935385
     // 双指针法
     class Solution {
     public:
@@ -1219,9 +1311,9 @@ public:
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(n)$，
     * 空间复杂度：$O(1)$
 
@@ -1346,28 +1438,35 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/unique-paths/solution/bu-tong-lu-jing-by-leetcode-solution-hzjf/
-    // 动态规划
     class Solution {
     public:
         int uniquePaths(int m, int n) {
-            vector<vector<int>> dp(m, vector<int>(n));
-    
+            // 1. dp数组含义 dp[i][j]: 到达第[i][j]点的不同路径数
+            vector<vector<int>> dp(m, vector<int>(n, 0));
+            // 2. 递推公式 dp[i][j] = dp[i - 1][j] + dp[i][j - 1]
+            // 3. 初始化
             for (int i = 0; i < m; ++i) {
                 dp[i][0] = 1;
             }
-    
             for (int j = 0; j < n; ++j) {
                 dp[0][j] = 1;
             }
-    
+            // 4. 遍历顺序 从上往下 从左往右
             for (int i = 1; i < m; ++i) {
                 for (int j = 1; j < n; ++j) {
-                    dp[i][j] = dp[i-1][j] + dp[i][j-1];
+                    dp[i][j] = dp[i - 1][j] + dp[i][j - 1];
                 }
             }
+            // 5. 打印dp数组
+            // for (int i = 0; i < m; ++i) {
+            //     for (int j = 0; j < n; ++j) {
+            //         cout << dp[i][j] << " ";
+            //     }
+            //     cout << endl;
+            // }
     
-            return dp[m-1][n-1];
+            // 6. 优化：空间优化（滚动数组，计算dp[i][j]只用到了dp[i][j - 1]和dp[i-1][j]，其中第i-1行只需要保留一个元素dp[i-1][j]，所以只需要一行数组就可以）
+            return dp[m - 1][n - 1];
         }
     };
     ```
@@ -1509,31 +1608,36 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/unique-paths-ii/solution/jian-dan-dpbi-xu-miao-dong-by-sweetiee/
-    // 动态规划
     class Solution {
     public:
+        // 二维数组
         int uniquePathsWithObstacles(vector<vector<int>>& obstacleGrid) {
             int m = obstacleGrid.size(), n = obstacleGrid[0].size();
+            // 1. 确定dp数组含义
             vector<vector<int>> dp(m, vector<int>(n, 0));
     
-            for (int i = 0; i < m && obstacleGrid[i][0] == 0; ++i) {
-                dp[i][0] = 1;
-            }
+            // 2. 递推公式
+            // 2.1 dp[i][j] = dp[i - 1][j] + dp[i][j - 1] if obstacleGrid[i][j] == 0
+            // 2.2 dp[i][j] = 0; if obstacleGrid[i][j] == 1;
     
-            for (int j = 0; j < n && obstacleGrid[0][j] == 0; ++j) {
-                dp[0][j] = 1;
-            }
+            // 3. 初始化
+            // 3.1 dp[i][0] = 1; if i < m && obstacleGrid[i][0] != 1;
+            // 3.2 dp[0][j] = 1; if j < n && obstacleGrid[0]pj] != 1;
+            for (int i = 0; i < m && obstacleGrid[i][0] != 1; ++i) { dp[i][0] = 1; }
+            for (int j = 0; j < n && obstacleGrid[0][j] != 1; ++j) { dp[0][j] = 1; }
     
+            // 4. 遍历顺序
             for (int i = 1; i < m; ++i) {
                 for (int j = 1; j < n; ++j) {
                     if (obstacleGrid[i][j] == 0) {
-                        dp[i][j] = dp[i-1][j] + dp[i][j-1];
+                        dp[i][j] = dp[i - 1][j] + dp[i][j - 1];
                     }
                 }
             }
     
-            return dp[m-1][n-1];
+            // 5. 打印dp数组
+            
+            return dp[m - 1][n - 1];
         }
     };
     ```
@@ -1564,34 +1668,45 @@ public:
   * 代码
 
     ```c++
-    // 参考 https://leetcode-cn.com/problems/unique-paths-ii/solution/si-chong-shi-xian-xiang-xi-tu-jie-63-bu-0qyz7/
-    // 动态规划-空间优化
     class Solution {
     public:
+        // 一维数组
         int uniquePathsWithObstacles(vector<vector<int>>& obstacleGrid) {
             int m = obstacleGrid.size(), n = obstacleGrid[0].size();
+            // 1. 确定dp数组含义
             vector<int> dp(n, 0);
     
+            // 2. 递推公式
+            // 2.1 dp[j] = [j] + dp[j - 1] if i > 0 && j > 0 && obstacleGrid[i][j] == 0
+            // 2.2 dp[j] = 0; if obstacleGrid[i][j] == 1;
+    
+            // 3. 初始化
+            // 3.1 dp[i][0] = 1; if i < m && obstacleGrid[i][0] != 1;
+            // 3.2 dp[0][j] = 1; if j < n && obstacleGrid[0]pj] != 1;
             dp[0] = !obstacleGrid[0][0];
+    
+            // 4. 遍历顺序
             for (int i = 0; i < m; ++i) {
                 for (int j = 0; j < n; ++j) {
                     if (obstacleGrid[i][j] == 1) {
                         dp[j] = 0;
-                    } else if (obstacleGrid[i][j] == 0 && j - 1 >= 0) {
-                        dp[j] = dp[j] + dp[j-1];
+                    } else if (j != 0 && obstacleGrid[i][j] == 0) {
+                        dp[j] += dp[j - 1];
                     }
                 }
             }
     
-            return dp[n-1];
+            // 5. 打印dp数组
+            
+            return dp[n - 1];
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(mn)$
-
+  
   * 空间复杂度：$O(n)$
 
 ### [64. 最小路径和](https://leetcode-cn.com/problems/minimum-path-sum/)
@@ -1634,9 +1749,48 @@ public:
 
     * **返回值**：返回`dp`矩阵右下角值，即走到终点的最小路径和
 
-    * 其实可以不建立`dp`矩阵浪费额外空间，直接修改`grid[i][j]`即可，因为`grid[i][j] = min(grid[i-1][j], grid[i][j-1]) + grid[i][j]`；原`grid`矩阵元素被覆盖为`dp`元素后，不会再被使用
+  * 代码: 额外开辟空间
 
-  * 代码
+    ```c++
+    class Solution {
+    public:
+        // 二维数组
+        int minPathSum(vector<vector<int>>& grid) {
+            int m = grid.size(), n = grid[0].size();
+            // 1. 定义dp数组：dp[i][j]表示到达第i行第j列时的路径最小数字总和
+            vector<vector<int>> dp(m, vector<int>(n, 0));
+    
+            // 2. 递推公式：
+            // 2.1 dp[0][0] = grid[0][0]; if i == 0 && j == 0
+            // 2.2 dp[i][0] = dp[i - 1][0] + grid[i][j]; if j == 0;
+            // 2.3 dp[0][j] = dp[0][j - 1] + grid[i][j]; if i == 0;
+            // 2.4 dp[i][j] = min(dp[i - 1][j], dp[i][j - 1]) + grid[i][j] if i != 0 && j != 0
+    
+            // 3. 初始化 可直接在遍历中判断
+    
+            // 4. 遍历顺序
+            for (int i = 0; i < m; ++i) {
+                for (int j = 0; j < n; ++j) {
+                    if (i == 0 && j == 0) {
+                        dp[i][j] = grid[i][j];
+                    } else if (j == 0) {
+                        dp[i][0] = dp[i - 1][0] + grid[i][j];
+                    } else if (i == 0) {
+                        dp[0][j] = dp[0][j - 1] + grid[i][j];
+                    } else {
+                        dp[i][j] = min(dp[i - 1][j], dp[i][j - 1]) + grid[i][j];
+                    }
+                }
+            }
+    
+            return dp[m - 1][n - 1];
+        }
+    };
+    ```
+
+    
+
+  * 代码：其实可以不建立`dp`矩阵浪费额外空间，直接修改`grid[i][j]`即可，因为`grid[i][j] = min(grid[i-1][j], grid[i][j-1]) + grid[i][j]`；原`grid`矩阵元素被覆盖为`dp`元素后，不会再被使用
 
     ```c++
     // https://leetcode-cn.com/problems/minimum-path-sum/solution/zui-xiao-lu-jing-he-dong-tai-gui-hua-gui-fan-liu-c/
@@ -1691,33 +1845,44 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/minimum-path-sum/solution/hui-su-dao-dong-tai-gui-hua-zai-dao-kong-swk9/
-    // 动态规划-状态压缩
     class Solution {
     public:
+        // 二维数组
         int minPathSum(vector<vector<int>>& grid) {
             int m = grid.size(), n = grid[0].size();
+            // 1. 定义dp数组：dp[j]表示到达第i行第j列时的路径最小数字总和
             vector<int> dp(n, 0);
-            dp[0] = grid[0][0];
     
+            // 2. 递推公式（二维数组）：
+            // 2.1 dp[0][0] = grid[0][0]; if i == 0 && j == 0
+            // 2.2 dp[i][0] = dp[i - 1][0] + grid[i][j]; if j == 0;
+            // 2.3 dp[0][j] = dp[0][j - 1] + grid[i][j]; if i == 0;
+            // 2.4 dp[i][j] = min(dp[i - 1][j], dp[i][j - 1]) + grid[i][j] if i != 0 && j != 0
+    
+            // 3. 初始化 可直接在遍历中判断
+    
+            // 4. 遍历顺序
             for (int i = 0; i < m; ++i) {
                 for (int j = 0; j < n; ++j) {
-                    if (i == 0 && j != 0) {
-                        dp[j] = grid[i][j] + dp[j-1];
-                    } else if (i != 0 && j == 0) {
-                        dp[j] = grid[i][j] + dp[j];
-                    } else if (i != 0 && j != 0) {
-                        dp[j] = grid[i][j] + min(dp[j], dp[j-1]);
+                    if (i == 0 && j == 0) {
+                        dp[j] = grid[i][j];
+                    } else if (j == 0) {
+                        dp[0] = dp[0] + grid[i][j];
+                    } else if (i == 0) {
+                        dp[j] = dp[j - 1] + grid[i][j];
+                    } else {
+                        dp[j] = min(dp[j], dp[j - 1]) + grid[i][j];
                     }
                 }
             }
-            return dp[n-1];
+    
+            return dp[n - 1];
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(mn)$
     * 空间复杂度：$O(n)$
 
@@ -1772,13 +1937,23 @@ public:
     ```c++
     class Solution {
     public:
+        // 一维数组
         int climbStairs(int n) {
+            if (n <= 2) { return n; }
+            // 1. 定义dp数组：dp[i]表示爬到第i节台阶的方法数
             vector<int> dp(n + 1, 0);
-            dp[0] = 1;
+    
+            // 2. 递推公式 dp[i] = dp[i - 1] + dp[i - 2]; if i > 2;
+    
+            // 3. 初始化 dp[0] = 0, dp[1] = 1; dp[2] = 2;
             dp[1] = 1;
-            for (int i = 2; i <= n; ++i) {
+            dp[2] = 2;
+    
+            // 遍历顺序
+            for (int i = 3; i <= n; ++i) {
                 dp[i] = dp[i - 1] + dp[i - 2];
             }
+    
             return dp[n];
         }
     };
@@ -1798,24 +1973,34 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/climbing-stairs/solution/pa-lou-ti-by-leetcode-solution/
-    // 动态规划-空间优化
     class Solution {
     public:
+        // 常量空间: 由递推公式可得，dp[i]只与dp[i - 1]和dp[i - 2]有关，则可用两个变量保存dp[i - 1]和dp[i - 2]
         int climbStairs(int n) {
-            int f = 1, s = 1, t = 1;
-            for (int i = 2; i <= n; ++i) {
-                t = f + s;
-                f = s;
-                s = t;
+            if (n <= 2) { return n; }
+            // 1. 定义first, second
+            int first = 0, second = 0;
+    
+            // 2. 递推公式 dp[i] = dp[i - 1] + dp[i - 2]; if i > 2; => third = first + second; first = second; second = third;
+    
+            // 3. 初始化 first = 1; second = 2;
+            first = 1;
+            second = 2;
+    
+            // 遍历顺序
+            for (int i = 3; i <= n; ++i) {
+                int third = first + second;
+                first = second;
+                second = third;
             }
-            return t;
+    
+            return second;
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(n)$
     * 空间复杂度：$O(1)$
 
@@ -1866,87 +2051,32 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/triangle/solution/san-jiao-xing-zui-xiao-lu-jing-he-by-leetcode-solu/
-    // 动态规划
     class Solution {
     public:
+        // 二维数组，不额外开辟空间（倒序）
         int minimumTotal(vector<vector<int>>& triangle) {
-            int n = triangle.size();
+            int m = triangle.size();
+            // 1. 定义dp数组：dp[i][j]表示到达第i层第j列时的最小路径和
     
-            // f[i][j] 表示从三角形顶部走到位置 (i, j) 的最小路径和
-            vector<vector<int>> f(n, vector<int>(n));
-            
-            // 初始化
-            f[0][0] = triangle[0][0];
+            // 2. 递推公式：倒序计算，自底向上 dp[i][j] = min(dp[i + 1][j], dp[i + 1][j + 1]) + triangle[i][j]; 
     
-            for (int i = 1; i < n; ++i) {
-                // 下标(i, 0)
-                f[i][0] = f[i - 1][0] + triangle[i][0];
-                
-                // 下标(i, j) i > j, j != 0
-                for (int j = 1; j < i; ++j) {
-                    f[i][j] = min(f[i - 1][j - 1], f[i - 1][j]) + triangle[i][j];
+            // 3. 初始化 dp = 0
+    
+            // 4. 遍历顺序：倒序计算，自底向上
+            for (int i = m - 2; i >= 0; --i) {
+                for (int j = 0; j < triangle[i].size(); ++j) {
+                    triangle[i][j] = min(triangle[i + 1][j], triangle[i + 1][j + 1]) + triangle[i][j];
                 }
-    
-                // 下标(i, i)
-                f[i][i] = f[i - 1][i - 1] + triangle[i][i];
             }
-    
-            // 返回最后一行最小值
-            return *min_element(f[n - 1].begin(), f[n - 1].end());
+            return triangle[0][0];
         }
     };
     ```
-
+    
   * 复杂度
 
     * 时间复杂度：$O(n^2)$
     * 空间复杂度：$O(n^2)$
-
-* 动态规划-空间优化
-
-  * 思路
-
-    * 回顾上个方法的状态转移方程发现，`f[i][j]`只和`f[i - 1][..]`有关，和`f[i-2][..]`及之前的状态都无关。因此不必存储这些无关状态。
-
-    * 故可使用一维数组存储，但要注意 **按列枚举时，需要递减列下标**
-
-      > 为什么只有在递减地枚举 j 时，才能省去一个一维数组？当我们在计算位置 (i, j) 时，f[j+1]f[j+1] 到 f[i] 已经是第 i 行的值，而 f[0] 到 f[j] 仍然是第 i-1 行的值。此时我们直接通过
-      >
-      > $ f[j] = \min(f[j-1], f[j]) + c[i][j]$
-      >
-      > 进行转移，恰好就是在(i−1,j−1) 和 (i−1,j) 中进行选择。但如果我们递增地枚举 j，那么在计算位置 (i, j时，f[0] 到 f[j−1] 已经是第 i 行的值。如果我们仍然使用上述状态转移方程，那么是在 (i, j-1) 和 (i-1, j) 中进行选择，就产生了错误。
-
-  * 代码
-
-    ```c++
-    // https://leetcode-cn.com/problems/triangle/solution/san-jiao-xing-zui-xiao-lu-jing-he-by-leetcode-solu/
-    // 动态规划-空间优化
-    class Solution {
-    public:
-        int minimumTotal(vector<vector<int>>& triangle) {
-            int n = triangle.size();
-            vector<int> dp(n);
-            
-            dp[0] = triangle[0][0];
-    
-            for (int i = 1; i < n; ++i) {
-                dp[i] = dp[i - 1] + triangle[i][i];
-                for (int j = i - 1; j > 0; --j) {
-                    dp[j] = min(dp[j - 1], dp[j]) + triangle[i][j];
-                }
-                dp[0] += triangle[i][0];
-            }
-    
-            return *min_element(dp.begin(), dp.end());
-        }
-    };
-    ```
-
-  * 复杂度
-
-    * 时间复杂度：$O(n^2)$
-    * 空间复杂度：$O(n)$
 
 * 动态规划-牛皮plus版
 
@@ -2013,26 +2143,23 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/best-time-to-buy-and-sell-stock/solution/121-mai-mai-gu-piao-de-zui-jia-shi-ji-by-leetcode-/
-    // 一次遍历
     class Solution {
     public:
         int maxProfit(vector<int>& prices) {
-            int minprice = INT_MAX, maxprofit = 0;
-            for (int price : prices) {
-                if (price < minprice) {
-                    minprice = price;
-                } else {
-                    maxprofit = max(maxprofit, price - minprice);
-                }
+            int buy_price = INT_MAX, max_profit = INT_MIN;
+            for (int i = 0; i < prices.size(); ++i) {
+                // 更新最低买入价格
+                buy_price = min(buy_price, prices[i]);
+                // 更新当前卖出价格和买入价格的最大利润
+                max_profit = max(max_profit, prices[i] - buy_price);
             }
-            return maxprofit;
+            return max_profit;
         }
     };
     ```
-
+    
   * 复杂度
-
+  
     * 时间复杂度：$O(n)$
     * 空间复杂度：$O(1)$
 
@@ -2051,7 +2178,74 @@ public:
 > 输入：s = "a"
 > 输出：[["a"]]
 
+* 回溯+动态规划
 
+  ```c++
+  class Solution {
+  public:
+      vector<vector<string>> partition(string s) {
+          vector<vector<string>> res;
+          int n = s.size();
+  
+          // 1. 中心扩展法预处理，得到所有子串是否为回文串
+          // 1.1 dp[i][j]表示s[i:j]子串是否为回文串
+          vector<vector<bool>> dp(n, vector<bool>(n, false));
+          // 1.2 中心扩展法 得到dp数组
+          for (int i = 0; i < n; ++i) {
+              preprocess(s, i, i, dp);
+              preprocess(s, i, i + 1, dp);
+          }
+          // 1.3 打印dp数组
+          // for (auto row : dp) {
+          //     for (auto val : row) {
+          //         cout << val << "\t";
+          //     }
+          //     cout << endl;
+          // }
+          
+          // 2. 回溯法分割s，得到s所有子串及其子串匹配关系。比如 aab = [a, a, b] = [aa, b] = [a, ab] = [aab]
+          vector<string> path;
+          backtrack(s, 0, path, res, dp);
+  
+          // for (auto &path : res) {
+          //     for (auto str : path) {
+          //         cout << str << "\t";
+          //     }
+          //     cout << endl;
+          // }
+          
+  
+          return res;
+      }
+  
+      void preprocess(const string &s, int left, int right, vector<vector<bool>> &dp) {
+          while (left >= 0 && right < s.size() && s[left] == s[right]) {
+              dp[left][right] = true;
+              --left;
+              ++right;
+          }
+      }
+      
+      void backtrack(const string &s, int idx, vector<string> path, vector<vector<string>> &res, vector<vector<bool>> &dp) {
+          if (idx == s.size()) {
+              res.push_back(path);
+              return;
+          }
+          for (int i = idx; i < s.size(); ++i) {
+              string cur_s = s.substr(idx, i - idx + 1);
+              // 通过dp[i][j]判定当前s[i:j]是否为回文串
+              if (!dp[idx][i]) {
+                  continue;
+              }
+              path.push_back(cur_s);
+              backtrack(s, i + 1, path, res, dp);
+              path.pop_back();
+          }
+      }
+  };
+  ```
+
+  
 
 ### [139. 单词拆分](https://leetcode-cn.com/problems/word-break/)
 
@@ -2096,37 +2290,47 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/word-break/solution/dan-ci-chai-fen-by-leetcode-solution/
-    // 动态规划
     class Solution {
     public:
         bool wordBreak(string s, vector<string>& wordDict) {
-            // dp[i] 表示s[0, i]是否可由wordDict中单词表示
-            vector<bool> dp(s.size() + 1, false);
-            unordered_set<string> lookup;
-            for (auto word : wordDict) {
-                lookup.insert(word);
-            }
+            int n = s.size();
+            unordered_set<string> lookup(wordDict.begin(), wordDict.end());
+            // 1. dp[i]表示s[0:i]时可否可拼接
+            vector<bool> dp(n + 1, false);
     
-            // 表示空串
-            dp[0] = true;
+            // 2. 递推公式 dp[i] = dp[j] && str in dict
     
+            // 3. 初始化 dp[0] = true; 表示空字符串
+            dp[0] = true; 
+    
+            // 4. 遍历顺序
             for (int i = 1; i <= s.size(); ++i) {
                 for (int j = 0; j < i; ++j) {
-                    if (dp[j] && lookup.find(s.substr(j, i - j)) != lookup.end()) {
+                    string tmp = s.substr(j, i - j);
+                    bool exist = lookup.find(tmp) != lookup.end();
+                    if (dp[j] && exist) {
                         dp[i] = true;
                         break;
                     }
+                    
+                    // dp[i] = dp[i] || dp[j] && exist;
+                    // cout << "i: " << i << "\tj: " << j <<"\ttmp: " << tmp << "\tdp[i]: " << dp[i] << "\tdp[j]: " << dp[j] << endl;
                 }
             }
     
-            return dp[s.size()];
+            // 5. 打印dp数组
+            // for (auto val : dp) {
+            //     cout << val << "\t";
+            // }
+            // cout << endl;
+    
+            return dp[n];
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(n^2)$，其中 n 为字符串 s 的长度。我们一共有 O(n)个状态需要计算，每次计算需要枚举 O(n) 个分割点，哈希表判断一个字符串是否出现在给定的字符串列表需要 O(1)的时间，因此总时间复杂度为 $O(n^2)$
     * 空间复杂度：$O(n)$，其中 n 为字符串 s 的长度。我们需要 O(n) 的空间存放 $\textit{dp}$ 值以及哈希表亦需要 O(n)的空间复杂度，因此总空间复杂度为 O(n)
 
@@ -2180,17 +2384,69 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/maximum-product-subarray/solution/cheng-ji-zui-da-zi-shu-zu-by-leetcode-solution/
-    // 动态规划
     class Solution {
     public:
+        /*
+        思路：nums = [2,3,-2,4]
+        dp[0] = 2
+        dp[1] = max(2 * 3, 3) = max(dp[0] * 3, 3)
+        dp[2] = max(2 * 3 * -2, 3 * -2, -2) = max(dp[1] * -2, -2)
+        dp[3] = max(2 * 3 * -2 * 4, 3 * -2 * 4, -2 * 4, 4) = max(dp[2] * 4, 4)
+    
+        dp[i] 表示以nums[i]结尾的非空子数组的最大乘积
+        上面思路针对用例 [-2,3,-4]就存在问题了
+        dp[0] = -2
+        dp[1] = max(-2 * 3, 3) = 3
+        dp[2] = max(-2 * 3 * -4, 3 * -4, -4) = 3  错误
+    
+        应该定义两个dp数组区分负值和正值，计算以nums[i]为结尾的子数组的最大乘积和最小乘积。[-2,3,-4,5,-6,7]
+        positive_dp[0] = -2
+        negitive_dp[0] = -2
+    
+        positive_dp[1] = max(3, max(positive_dp[0] * 3, negitive_dp[0] * 3)) = 3
+        negitive_dp[1] = min(3, min(positive_dp[0] * 3, negitive_dp[0] * 3)) = -6
+    
+        positive_dp[2] = max(-4, max(positive_dp[1] * -4, negitive_dp[1] * -4)) = 24
+        negitive_dp[2] = min(-4, min(positive_dp[1] * -4, negitive_dp[1] * -4)) = -12
+    
+        max_product = max(max_product, positive_dp[i]);
+    
+        */
         int maxProduct(vector<int>& nums) {
-            vector<int> maxF(nums), minF(nums);
+    
+            // 1. 定义dp数组：dp[i] 表示以nums[i]结尾的非空子数组的最大乘积
+            vector<int> pdp(nums.size(), 0), ndp(nums.size(), 0);
+            int max_product = nums[0];
+    
+            // 2. 递推公式
+            // 2.1 最大正值 pdp[i] = max(nums[i], max(pdp[i - 1] * nums[i], ndp[i - 1] * nums[i]))
+            // 2.2 最小负值 ndp[i] = min(nums[i], min(pdp[i - 1] * nums[i], ndp[i - 1] * nums[i]));
+            // 2.3 max_product = max(max_product, pdp[i]);
+    
+            // 3. 初始化 dp[0] = nums[0]
+            pdp[0] = nums[0];
+            ndp[0] = nums[0];
+    
+            // 4. 遍历顺序
             for (int i = 1; i < nums.size(); ++i) {
-                maxF[i] = max(maxF[i - 1] * nums[i], max(minF[i - 1] * nums[i], nums[i]));
-                minF[i] = min(minF[i - 1] * nums[i], min(maxF[i - 1] * nums[i], nums[i]));
+                pdp[i] = max(nums[i], max(pdp[i - 1] * nums[i], ndp[i - 1] * nums[i]));
+                ndp[i] = min(nums[i], min(pdp[i - 1] * nums[i], ndp[i - 1] * nums[i]));
+                max_product = max(max_product, pdp[i]);
+                cout << i << "\t" << pdp[i - 1] << "\t" << ndp[i - 1] << "\t" << pdp[i] << "\t" << ndp[i] << "\t" << max_product << endl;
             }
-            return *max_element(maxF.begin(), maxF.end());
+    
+            // 5. 打印dp数组
+            // cout << "pdp: ";
+            // for (auto val : pdp) {
+            //     cout << val <<"\t";
+            // }
+            // cout << "ndp: ";
+            // for (auto val : ndp) {
+            //     cout << val <<"\t";
+            // }
+    
+            // 6. 返回
+            return max_product;
         }
     };
     ```
@@ -2283,24 +2539,31 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/house-robber/solution/da-jia-jie-she-by-leetcode-solution/
-    // 动态规划
     class Solution {
     public:
         int rob(vector<int>& nums) {
-            if (nums.empty()) {
-                return 0;
-            }
             if (nums.size() == 1) {
                 return nums[0];
             }
-    
+            // 1. 定义dp数组: dp[i]表示偷窃第i号房屋的最高金额
             vector<int> dp(nums.size(), 0);
+    
+            // 2. 递推公式 dp[i] = max(dp[i - 1], dp[i - 2] + nums[i])
+    
+            // 3. 初始化 dp[0] = nums[0]
             dp[0] = nums[0];
             dp[1] = max(nums[0], nums[1]);
+    
+            // 4. 遍历顺序
             for (int i = 2; i < nums.size(); ++i) {
-                dp[i] = max(dp[i-2] + nums[i], dp[i-1]);
+                dp[i] = max(dp[i - 1], dp[i - 2] + nums[i]);
             }
+    
+            // 5. 打印dp数组
+            // for (auto val : dp) {
+            //     cout << val << "\t";
+            // }
+    
             return dp[nums.size() - 1];
         }
     };
@@ -2408,28 +2671,68 @@ public:
 
     ```c++
     // https://leetcode-cn.com/problems/house-robber-ii/solution/da-jia-jie-she-ii-by-leetcode-solution-bwja/
+    class Solution {
+    public:
+        int rob(vector<int>& nums) {
+            if (nums.size() == 1) {
+                return nums[0];
+            }
+            // 1. 定义dp数组: 连成圈后，为防止首尾偷窃，可以定义两个dp数组，每个dp数组可偷窃的房屋范围不同
+            // 1.1 dp1[i]表示从[0, i - 2] 区间房屋选择
+            // 1.2 dp2[i]表示从[1, i - 1] 区间房屋选择
+            vector<int> dp1(nums.size(), 0), dp2(nums.size(), 0);
+    
+            // 2. 递推公式 
+            // 2.1 dp1[i] = (dp1[i - 1], dp1[i - 2] + nums[i]); i in (0, i - 2)
+            // 2.2 dp2[i] = (dp1[i - 1], dp2[i - 2] + nums[i]); i in (1, i - 1)
+    
+            // 3. 初始化
+            dp1[0] = nums[0];
+            dp1[1] = max(nums[0], nums[1]);
+            dp2[0] = 0;
+            dp2[1] = nums[1];
+    
+            // 4. 遍历顺序
+            for (int i = 2; i <= nums.size() - 2; ++i) {
+                dp1[i] = max(dp1[i - 1], dp1[i - 2] + nums[i]);
+            }
+            for (int i = 2; i <= nums.size() - 1; ++i) {
+                dp2[i] = max(dp2[i - 1], dp2[i - 2] + nums[i]);
+            }
+    
+            // 5. 打印dp数组
+            // for (auto val : dp1) { cout << val << "\t"; }
+            // cout << endl;
+            // for (auto val : dp2) { cout << val << "\t"; }
+    
+            return max(dp1[nums.size() - 2], dp2[nums.size() - 1]);
+        }
+    };
     // 动态规划-空间优化
     class Solution {
     public:
         int rob(vector<int>& nums) {
-            int n = nums.size();
-            if (n == 0) {
-                return 0;
-            }
-            if (n == 1) {
+            if (nums.size() == 1) {
                 return nums[0];
-            }
-            if (n == 2) {
+            } else if (nums.size() == 2) {
                 return max(nums[0], nums[1]);
             }
-            
-            return max(robRange(nums, 0, n - 2), robRange(nums, 1, n - 1));
+            // 1. 定义dp数组: 连成圈后，为防止首尾偷窃，可以定义两个dp数组，每个dp数组可偷窃的房屋范围不同
+            // 1.1 dp1[i]表示从[0, i - 2] 区间房屋选择
+            // 1.2 dp2[i]表示从[1, i - 1] 区间房屋选择
+            vector<int> dp1(nums.size(), 0), dp2(nums.size(), 0);
+    
+            // 2. 递推公式 
+            // 2.1 dp1[i] = (dp1[i - 1], dp1[i - 2] + nums[i]); i in (0, i - 2)
+            // 2.2 dp2[i] = (dp1[i - 1], dp2[i - 2] + nums[i]); i in (1, i - 1)
+    
+            return max(robRange(nums, 0, nums.size() - 2), robRange(nums, 1, nums.size() - 1));
         }
     
-        int robRange(vector<int> &nums, int start, int end) {
-            int first = nums[start], second = max(nums[start], nums[start + 1]);
-            for (int i = start + 2; i <= end; ++i) {
-                int third = max(first + nums[i], second);
+        int robRange(vector<int> &nums, int left, int right) {
+            int first = nums[left], second = max(nums[left], nums[left + 1]);
+            for (int i = left + 2; i <= right; ++i) {
+                int third = max(second, first + nums[i]);
                 first = second;
                 second = third;
             }
@@ -2437,13 +2740,13 @@ public:
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(n)$
     * 空间复杂度：$O(1)$
 
-##### [337. 打家劫舍 III](https://leetcode-cn.com/problems/house-robber-iii/)
+### [337. 打家劫舍 III](https://leetcode-cn.com/problems/house-robber-iii/)
 
 > 在上次打劫完一条街道之后和一圈房屋后，小偷又发现了一个新的可行窃的地区。这个地区只有一个入口，我们称之为“根”。 除了“根”之外，每栋房子有且只有一个“父“房子与之相连。一番侦察之后，聪明的小偷意识到“这个地方的所有房屋的排列类似于一棵二叉树”。 如果两个直接相连的房子在同一天晚上被打劫，房屋将自动报警。
 >
@@ -2502,6 +2805,38 @@ public:
             dfs(root);
             return max(f[root], g[root]);
         }
+    };
+    
+    
+    class Solution {
+    public:
+        int rob(TreeNode* root) {
+            if (root == nullptr) { return 0; }
+    
+            // 1. 定义dp数组
+            // 1.1 dp[node]表示选择当前节点时的最高金额
+            // 1.2 ndp[node]表示不选择当前节点是的最高金额
+            unordered_map<TreeNode*, int> dp, ndp;
+    
+            // 2. 递推公式
+            // 2.1 dp[node] = node->val + ndp[node->left] + ndp[node->right]; 选择当前节点node，无法选择left和right子节点
+            // 2.2 ndp[node] = max(dp[node->left], ndp[node->left]) + max(dp[node->right], ndp[node->right]); 不选择当前节点node时，left和right可选可不选，取最大
+    
+            // 3. 遍历顺序
+            dfs(root, dp, ndp);
+    
+            // 5. 返回
+            return max(dp[root], ndp[root]);
+        }
+    
+        void dfs(TreeNode *root, unordered_map<TreeNode*, int>&dp, unordered_map<TreeNode*, int> &ndp) {
+            if (root == nullptr) { return; }
+            dfs(root->left, dp, ndp);
+            dfs(root->right, dp, ndp);
+            dp[root] = root->val + ndp[root->left] + ndp[root->right];
+            ndp[root] = max(dp[root->left], ndp[root->left]) + max(dp[root->right], ndp[root->right]);
+        }
+    
     };
     ```
 
@@ -2575,12 +2910,12 @@ public:
 
   * 思路
 
-    * **状态定义**：$dp(i, j)$表示以$(i, j)$为右下角的最大正方形的边长值。**注意，不是表示这个区域中最大正方形的边长值**。
+    * **状态定义**：`dp(i, j)`表示以`(i, j)`为右下角的最大正方形的边长值。**注意，不是表示这个区域中最大正方形的边长值**。
 
-    * **状态转移方程**：如何计算$dp(i, j)$呢？
+    * **状态转移方程**：如何计算`dp(i, j)`呢？
 
-      * 如果$matrix(i, j) = 0$，则$dp(i,j) = 0$，因为当前位置无法构成正方形
-      * 如果$matrix(i, j) = 1$，则$dp(i, j)$取决于其 **上方、左方、左上方**的三个相邻位置的$dp$值。具体而言，等于其三个相邻位置的元素的最小值加1
+      * 如果`matrix(i, j) = 0`，则`dp(i,j) = 0`，因为当前位置无法构成正方形
+      * 如果`matrix(i, j) = 1`，则`dp(i, j)`取决于其 **上方、左方、左上方**的三个相邻位置的`dp`值。具体而言，等于其三个相邻位置的元素的最小值加1
 
       $$
       dp(i, j) = \min(dp(i - 1, j), dp(i - 1, j - 1), dp(i, j - 1)) + 1
@@ -2601,33 +2936,51 @@ public:
   * 代码
 
     ```c++
-    // 参考 https://leetcode-cn.com/problems/maximal-square/solution/zui-da-zheng-fang-xing-by-leetcode-solution/
-    // 这个也不错 https://leetcode-cn.com/problems/maximal-square/solution/li-jie-san-zhe-qu-zui-xiao-1-by-lzhlyle/
-    // 动态规划
     class Solution {
     public:
         int maximalSquare(vector<vector<char>>& matrix) {
-            if (matrix.size() == 0 || matrix[0].size() == 0) {
-                return 0;
-            }
-            int rows = matrix.size(), cols = matrix[0].size();
-            int maxSide = 0;
-            vector<vector<int>> dp(rows, vector<int>(cols, 0));
+            // 1. 定义dp数组：dp[i][j]表示以matrix[i][j]为右下角元素的正方向最大边长
+            int m = matrix.size(), n = matrix[0].size();
+            int max_side = 0;
+            vector<vector<int>> dp(m, vector<int>(n, 0));
     
-            for (int i = 0; i < rows; ++i) {
-                for (int j = 0; j < cols; ++j) {
+            // 2. 递推公式 dp[i][j] = min(dp[i - 1][j], dp[i - 1][j - 1], dp[i][j - 1]) + 1 if matrix[i]j] == 1
+    
+            // 3. 初始化：这里不做初始化，在遍历顺序中通过 i == 0 || j == 0 做，好处是dp[i][0]和dp[0][j]也需要更新max_side
+            // 3.1 dp[i][0] = matrix[i][0];
+            // 3.2 dp[0][j] = matrix[0][j]
+            // for (int i = 0; i < m; ++i) {
+            //     dp[i][0] = matrix[i][0] - '0';
+            // }
+            // for (int j = 0; j < n; ++j) {
+            //     dp[0][j] = matrix[0][j] - '0';
+            // }
+    
+            // 4. 遍历顺序
+            for (int i = 0; i < m; ++i) {
+                for (int j = 0; j < n; ++j) {
                     if (matrix[i][j] == '1') {
                         if (i == 0 || j == 0) {
                             dp[i][j] = 1;
                         } else {
-                            dp[i][j] = min(dp[i - 1][j - 1], min(dp[i - 1][j], dp[i][j - 1])) + 1;
+                            dp[i][j] = min(dp[i - 1][j], min(dp[i - 1][j - 1], dp[i][j - 1])) + 1;
                         }
-                        maxSide = max(maxSide, dp[i][j]);
+                        
+                        max_side = max(max_side, dp[i][j]);
                     }
                 }
             }
     
-            return maxSide * maxSide;
+            // 5. 打印dp数组
+            // for (auto row : dp) {
+            //     for (auto val : row) {
+            //         cout << val << "\t";
+            //     }
+            //     cout << endl;
+            // }
+    
+            // 6. 返回
+            return max_side * max_side;
         }
     };
     
@@ -2673,9 +3026,9 @@ public:
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(mn)$
     * 空间复杂度：$O(mn)$ ，第二种空间优化方法空间复杂度为$O(n)$
 
@@ -2795,28 +3148,36 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/perfect-squares/solution/hua-jie-suan-fa-279-wan-quan-ping-fang-shu-by-guan/
-    // 动态规划
     class Solution {
     public:
         int numSquares(int n) {
-            vector<int> dp(n + 1);
+            // 1. 定义dp数组：dp[i]表示整数i的完全平方数的最少数量
+            vector<int> dp(n + 1, INT_MAX);
+    
+            // 2. 递推公式：dp[i] = min(dp[i], dp[i - j * j] + 1); j > 0 && j * j <= i
+    
+            // 3. 初始化
             dp[0] = 0;
-            for (int i = 1; i <= n; ++i) {
-                // 最坏情况是都是1组成的
-                dp[i] = i;
+            dp[1] = 1;
+    
+            // 4. 遍历顺序
+            for (int i = 2; i <= n; ++i) {
                 for (int j = 1; j * j <= i; ++j) {
                     dp[i] = min(dp[i], dp[i - j * j] + 1);
                 }
             }
+            
+            // 5. 打印dp数组
+            // for (auto val : dp) { cout << val << "\t"; }
     
+            // 6. 返回
             return dp[n];
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(n \sqrt n)$
     * 空间复杂度：$O(n)$
 
@@ -2869,23 +3230,31 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/longest-increasing-subsequence/solution/zui-chang-shang-sheng-zi-xu-lie-dong-tai-gui-hua-2/
-    // 动态规划
     class Solution {
     public:
+        // 动态规划
         int lengthOfLIS(vector<int>& nums) {
-            int n = nums.size();
-            int res = 0;
-            vector<int> dp(n, 1);
-            for (int i = 0; i < n; ++i) {
+    
+            // 1. 定义dp数组：dp[i]表示以nums[i]为结尾元素的数组中的最长严格递增子序列长度
+            vector<int> dp(nums.size(), 1);
+    
+            // 2. 递推公式：dp[i] = max(dp[i], dp[j] + 1)； if 0 <= j < i and nums[i] > nums[j]
+    
+            // 3. 初始化 dp[i] = 1;
+    
+            // 4. 遍历顺序
+            for (int i = 1; i < nums.size(); ++i) {
                 for (int j = 0; j < i; ++j) {
-                    if (nums[j] < nums[i]) {
+                    if (nums[i] > nums[j]) {
                         dp[i] = max(dp[i], dp[j] + 1);
                     }
                 }
-                res = max(res, dp[i]);
             }
-            return res;
+    
+            // 5. 打印dp数组
+            // for (auto val : dp) { cout << val << "\t"; }
+    
+            return *max_element(dp.begin(), dp.end());
         }
     };
     ```
@@ -2918,36 +3287,49 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/longest-increasing-subsequence/solution/zui-chang-shang-sheng-zi-xu-lie-dong-tai-gui-hua-2/
-    // 动态规划+二分查找
     class Solution {
     public:
+        // 二分查找：朴素想法就是让最长严格递增子序列的元素都变大的慢一点。比如子序列长度为3时，队列可能是 [2, 5, 7]或者[2, 3, 7]，为了后续子序列可能更长，就让第2个元素由 5 -> 3，这样涨的慢一点
         int lengthOfLIS(vector<int>& nums) {
-            int n = nums.size();
-            int res = 0;
-            vector<int> dp(n, 1);
-            for (int num : nums) {
-                int i = 0, j = res;
-                while (i < j) {
-                    int m = (i + j) / 2;
-                    if (dp[m] < num) {
-                        i = m + 1;
-                    } else {
-                        j = m;
-                    }
-                }
-                dp[i] = num;
-                if (res == j) {
-                    ++res;
+            // 1. 定义数组存放子序列
+            vector<int> dp;
+    
+            // 2. 遍历数组
+            // 2.1 nums[i] > dp.back(), 添加元素，增加dp数组长度
+            // 2.2 nums[i] < dp.back(), 替换元素，让对应索引的元素涨的慢一点
+            for (int i = 0; i < nums.size(); ++i) {
+                if (dp.empty() || nums[i] > dp.back()) {
+                    dp.push_back(nums[i]);
+                } else {      
+                    int pos = findFirstLargerPos(dp, nums[i]);
+                    dp[pos] = nums[i];
                 }
             }
-            return res;
+    
+            return dp.size();
+        }
+    
+        // 二分查找
+        int findFirstLargerPos(vector<int> &dp, int target) {
+            int left = 0, right = dp.size() - 1;
+            int pos = 0;
+            while (left <= right) {
+                int mid = left + (right - left) / 2;
+                if (dp[mid] >= target) {
+                    pos = mid;
+                    right = mid - 1;
+                } else {
+                    left = mid + 1;
+                }
+            }
+            
+            return pos;
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(n \log n)$
     * 空间复杂度：$O(n)$
 
@@ -2999,18 +3381,21 @@ public:
     // 前缀和
     class NumArray {
     public:
-        vector<int> prefixSum;
         NumArray(vector<int>& nums) {
-            int n = nums.size();
-            prefixSum.resize(n + 1);
-            for (int i = 0; i < n; ++i) {
-                prefixSum[i + 1] = prefixSum[i] + nums[i];
+            prefix_.resize(nums.size() + 1, 0);
+            for (int i = 0; i < nums.size(); ++i) {
+                prefix_[i + 1] = prefix_[i] + nums[i];
             }
+            // for (auto val : prefix_) { cout << val << "\t"; }
         }
         
+        // nums[left:right] = nums[0:right] - nums[0:left-1] = prefix[right + 1] - prefix[left]
         int sumRange(int left, int right) {
-            return prefixSum[right + 1] - prefixSum[left];
+            return prefix_[right + 1] - prefix_[left];
         }
+    
+        // prefix[i + 1]表示nums[0:i]的和，包含[0, i]
+        vector<int> prefix_;
     };
     ```
   
@@ -3081,29 +3466,28 @@ public:
     // 二维前缀和
     class NumMatrix {
     public:
-        vector<vector<int>> prefixSum;
         NumMatrix(vector<vector<int>>& matrix) {
-            if (matrix.size() == 0 || matrix[0].size() == 0) {
-                return;
-            }
             int m = matrix.size(), n = matrix[0].size();
-            prefixSum.resize(m + 1, vector<int>(n + 1, 0));
-    
+            prefix_.resize(m + 1, vector<int>(n + 1, 0));
             for (int i = 0; i < m; ++i) {
                 for (int j = 0; j < n; ++j) {
-                    prefixSum[i + 1][j + 1] = prefixSum[i][j + 1] + prefixSum[i + 1][j] - prefixSum[i][j] + matrix[i][j];
+                    prefix_[i + 1][j + 1] = prefix_[i + 1][j] + prefix_[i][j + 1] - prefix_[i][j] + matrix[i][j];
                 }
             }
         }
         
+        // matrix[row1:row2][col1:col2] = matrix[0:row2 + 1][0:col2 + 1] - matrix[0:row2 + 1][0:col1] - matrix[0:row1][0:col2 + 1] + matrix[0:row1][0:col1]
         int sumRegion(int row1, int col1, int row2, int col2) {
-            return prefixSum[row2 + 1][col2 + 1] - prefixSum[row1][col2 + 1] - prefixSum[row2 + 1][col1] + prefixSum[row1][col1];
+            return prefix_[row2 + 1][col2 + 1] - prefix_[row2 + 1][col1] - prefix_[row1][col2 + 1] + prefix_[row1][col1];
         }
+    
+        // prefix[i + 1][j + 1]表示matrix[0:i][0:j]的和，包含matrix[i][j]
+        vector<vector<int>> prefix_;
     };
     ```
-
+    
   * 复杂度
-
+  
     * 时间复杂度：构造前缀和$prefixSum$的时间复杂度为$O(mn)$，求$sumRange$函数的时间复杂度为$O(1)$
     * 空间复杂度：$O(mn)$
 
@@ -3264,149 +3648,40 @@ public:
   * 代码
 
     ```c++
-    // https://leetcode-cn.com/problems/coin-change/solution/322-ling-qian-dui-huan-by-leetcode-solution/
-    // 动态规划
     class Solution {
     public:
         int coinChange(vector<int>& coins, int amount) {
-            if (coins.empty()) { return -1; }
-    
-            int n = coins.size();
-            // 初始值为 amount + 1，防止金额凑不出
+            // 1. 定义dp数组: dp[i]表示凑成金额 i 所需的最少硬币个数; 
+            //  初始值为 amount + 1，防止金额凑不出，后续返回时判断是否凑成功
             vector<int> dp(amount + 1, amount + 1);
     
+            // 2. 递推公式：dp[i] = min(dp[i - 1], dp[i - 2], dp[i - 5]) + 1;
+    
+            // 3. 初始化 dp[0] = 0 dp[1] = 1;
             dp[0] = 0;
+    
+            // 4. 遍历顺序
             for (int i = 1; i <= amount; ++i) {
-                for (auto cj : coins) {
-                    if (cj <= i) {
-                        dp[i] = min(dp[i], dp[i - cj] + 1);
+                for (int j = 0; j < coins.size(); ++j) {
+                    if (i >= coins[j]) {
+                        dp[i] = min(dp[i], dp[i - coins[j]] + 1);
                     }
                 }
             }
     
+            // 5. 打印dp数组
+            for (auto val : dp) { cout << val << "\t"; }
+    
+            // 6. 返回
             return dp[amount] > amount ? -1 : dp[amount];
         }
     };
     ```
-
+  
   * 复杂度
-
+  
     * 时间复杂度：$O(Sn)$，$S$表示金额大小，$n$表示面额个数
     * 空间复杂度：$O(S)$
-
-### [337. 打家劫舍 III](https://leetcode-cn.com/problems/house-robber-iii/)
-
-> 在上次打劫完一条街道之后和一圈房屋后，小偷又发现了一个新的可行窃的地区。这个地区只有一个入口，我们称之为“根”。 除了“根”之外，每栋房子有且只有一个“父“房子与之相连。一番侦察之后，聪明的小偷意识到“这个地方的所有房屋的排列类似于一棵二叉树”。 如果两个直接相连的房子在同一天晚上被打劫，房屋将自动报警。
->
-> 计算在不触动警报的情况下，小偷一晚能够盗取的最高金额。
->
-> 示例 1:
->
-> 输入: [3,2,3,null,3,null,1]
->      3
->     / \
->    2   3
->     \   \ 
->      3   1
->
-> 输出: 7 
-> 解释: 小偷一晚能够盗取的最高金额 = 3 + 3 + 1 = 7.
-> 示例 2:
->
-> 输入: [3,4,5,1,3,null,1]
->      3
->     / \
->    4   5
->   / \   \ 
->  1   3   1
->
-> 输出: 9
-> 解释: 小偷一晚能够盗取的最高金额 = 4 + 5 = 9.
-
-* 动态规划
-
-  * 思路
-
-    * 问题简化：一棵二叉树，树上的每个节点都有对应的权值，每个点有两种状态（选中和不选中），问在不能同时选中有父子关系的点的情况下，能选中的点的最大权值和是多少？
-    * **状态定义**
-      * $f(o)$表示选择$o$节点时，$o$节点的子树上被选择的节点的最大权值和
-      * $g(o)$表示不选择$o$节点时，$o$节点的子树上被选择的节点的最大权值和
-    * **状态转移方程**
-      * 当$o$节点被选中时，$o$的左右孩子都不可被选中，故$o$节点被选中情况下，其子树上被选中点的最大权值和为$l$和$r$不被选中的最大权值和相加，即$f(o) = g(l) + g(r)$
-      * 当$o$不被选中时，$o$的左右孩子可以被选中，也可以不被选中。对于$o$的某个具体的孩子$x$，它对$o$的贡献是$x$被选中和不被选中下权值和的较大值，故$g(o) = max\{f(l), g(l)\} + max\{f(r), g(r)\}$
-    * **返回值**：返回根节点选中和不被选中时的较大值
-
-  * 代码
-
-    ```c++
-    // https://leetcode-cn.com/problems/house-robber-iii/solution/da-jia-jie-she-iii-by-leetcode-solution/
-     // 动态规划
-    class Solution {
-    public:
-        unordered_map<TreeNode *, int> f, g;
-        int rob(TreeNode* root) {
-            dfs(root);
-            return max(f[root], g[root]);
-        }
-    
-        void dfs(TreeNode *node) {
-            if (node == nullptr) {
-                return;
-            }
-            dfs(node->left);
-            dfs(node->right);
-    
-            f[node] = node->val + g[node->left] + g[node->right];
-            g[node] = max(f[node->left], g[node->left]) +max(f[node->right], g[node->right]);
-        }
-    };
-    ```
-
-  * 复杂度
-
-    * 时间复杂度：$O(n)$
-    * 空间复杂度：$O(n)$
-
-* 动态规划-优化版
-
-  * 思路
-
-    由上可知，无论是$f(o)$还是$g(o)$，其最终值只和$f(l), g(l), f(r), g(r)$有关系，所以对于每个节点，只需要关心它的孩子节点的$f$和$g$值。我们可设计一个节点，表示某节点的$f$和$g$值，在每次递归返回的时候，把这个点对应的$f$和$g$返回给上级调用，就可以省去哈希表的空间
-
-  * 代码
-
-    ```c++
-    // https://leetcode-cn.com/problems/house-robber-iii/solution/da-jia-jie-she-iii-by-leetcode-solution/
-     // 动态规划-优化版
-     struct SubtreeStatus {
-         int selected;
-         int notSelected;
-     };
-    
-    class Solution {
-    public:
-        int rob(TreeNode* root) {
-            auto rootStatus = dfs(root);
-            return max(rootStatus.selected, rootStatus.notSelected);
-        }
-    
-        SubtreeStatus dfs(TreeNode *node) {
-            if (node == nullptr) {
-                return {0, 0};
-            }
-            auto l = dfs(node->left);
-            auto r = dfs(node->right);
-            int selected = node->val + l.notSelected + r.notSelected;
-            int notSelected = max(l.notSelected, l.selected) + max(r.notSelected, r.selected);
-            return {selected, notSelected};
-        }
-    };
-    ```
-
-  * 复杂度
-
-    * 时间复杂度：$O(n)$
-    * 空间复杂度：$O(n)$，省去了哈希表空间。但仍然是$O(n)$空间复杂度
 
 ### [338. 比特位计数](https://leetcode-cn.com/problems/counting-bits/)
 
